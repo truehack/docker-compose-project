@@ -27,4 +27,6 @@ Orchestration: Docker Compose с сетями и health checks
 1.Склонировать репозиторий:https://github.com/truehack/docker-compose-project.git
 2.Перейти в проект: cd docker-compose-project
 3.Запуск одной командой: docker-compose up --build -d
+проект откроетcя по адресу: http://localhost/
 ```
+
