@@ -1,15 +1,79 @@
+version: '3.8'
+
 services:
-   redis: 
-     image: redislabs/redismod
-     container_name: redis
-     ports:
-       - '6379:6379' 
-   web:
-        build: .
-        container_name: web
-        ports:
-            - "5000:5000"
-        volumes:
-            - .:/code
-        depends_on:
-            - redis
+  # ============ DATABASE ============
+  redis:
+    image: redis:7-alpine
+    container_name: notes-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  # ============ BACKEND API ============
+  backend:
+    build: ./backend
+    container_name: notes-backend
+    ports:
+      - "5000:5000"
+    # УБРАЛИ volumes для logs, так как Dockerfile создает read-only FS
+    # Оставляем только volume для разработки (опционально)
+    volumes:
+      - ./backend:/app  # ТОЛЬКО для разработки
+    networks:
+      - backend-network
+      - frontend-network
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - FLASK_ENV=development
+
+  # ============ FRONTEND ============
+  frontend:
+    build: ./frontend
+    container_name: notes-frontend
+    ports:
+      - "80:80"
+    # УБРАЛИ volumes для nginx logs
+    networks:
+      - frontend-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+# ============ NETWORKS ============
+networks:
+  backend-network:
+    driver: bridge
+    name: notes-backend-net
+  frontend-network:
+    driver: bridge
+    name: notes-frontend-net
+
+# ============ VOLUMES ============
+volumes:
+  redis_data:
+    name: notes-redis-data

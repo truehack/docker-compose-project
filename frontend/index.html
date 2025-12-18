@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notes App</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .status { padding: 10px; margin: 10px; }
+        .ok { background: #d4edda; }
+        .error { background: #f8d7da; }
+    </style>
+</head>
+<body>
+    <h1>📝 Notes Application</h1>
+    
+    <div class="status" id="frontend-status">Frontend: ✅ Running</div>
+    <div class="status" id="backend-status">Checking backend...</div>
+    
+    <div>
+        <h3>Add Note:</h3>
+        <input type="text" id="noteText" placeholder="Enter note text">
+        <button onclick="addNote()">Add</button>
+    </div>
+    
+    <div>
+        <h3>Notes:</h3>
+        <div id="notes-list">Loading...</div>
+    </div>
+
+    <script>
+        async function checkBackend() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                document.getElementById('backend-status').innerHTML = 
+                    `Backend: ✅ ${data.status}`;
+                document.getElementById('backend-status').className = 'status ok';
+                return true;
+            } catch (error) {
+                document.getElementById('backend-status').innerHTML = 
+                    `Backend: ❌ ${error.message}`;
+                document.getElementById('backend-status').className = 'status error';
+                return false;
+            }
+        }
+        
+        async function loadNotes() {
+            try {
+                const response = await fetch('/api/notes');
+                const notes = await response.json();
+                
+                const notesHtml = notes.length ? 
+                    notes.map(note => `<div>${note.id}. ${note.text} ${note.completed ? '✅' : '⬜'}</div>`).join('') :
+                    '<div>No notes yet</div>';
+                
+                document.getElementById('notes-list').innerHTML = notesHtml;
+            } catch (error) {
+                document.getElementById('notes-list').innerHTML = `Error: ${error.message}`;
+            }
+        }
+        
+        async function addNote() {
+            const text = document.getElementById('noteText').value;
+            if (!text) return;
+            
+            try {
+                await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                
+                document.getElementById('noteText').value = '';
+                loadNotes();
+            } catch (error) {
+                alert('Error adding note: ' + error.message);
+            }
+        }
+        
+        // Initialize
+        window.onload = async () => {
+            await checkBackend();
+            loadNotes();
+            
+            // Auto-refresh every 5 seconds
+            setInterval(loadNotes, 5000);
+        };
+    </script>
+</body>
+</html>
